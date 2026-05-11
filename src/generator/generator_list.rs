@@ -1,16 +1,22 @@
-use std::collections::VecDeque;
+use std::{
+    cell::RefCell,
+    collections::{HashMap, VecDeque},
+    rc::Rc,
+};
 
 use crate::{generator::Generator, resources::ResourceType};
 
 pub struct GeneratorList<'a> {
-    not_yet_used: VecDeque<Generator<'a>>,
-    initial_generators: (Generator<'a>, Generator<'a>),
+    not_yet_used: VecDeque<Rc<RefCell<Generator<'a>>>>,
+    initial_generators: (Rc<RefCell<Generator<'a>>>, Rc<RefCell<Generator<'a>>>),
+    all_generators: HashMap<String, Rc<RefCell<Generator<'a>>>>,
 }
 
 impl<'a> GeneratorList<'a> {
     pub fn default() -> Self {
-        let initial_generators: (Generator, Generator);
-        initial_generators = (
+        let initial_generators: (Rc<RefCell<Generator>>, Rc<RefCell<Generator>>);
+        let mut all_generators: HashMap<String, Rc<RefCell<Generator>>> = HashMap::new();
+        let punch_tree = Rc::new(RefCell::new(
             Generator::blank(
                 ResourceType::WOOD,
                 60,
@@ -20,6 +26,8 @@ impl<'a> GeneratorList<'a> {
                 "Punching Tree".to_owned(),
             )
             .add_cost((ResourceType::WOOD, 25.0)),
+        ));
+        let hit_rock = Rc::new(RefCell::new(
             Generator::blank(
                 ResourceType::STONE,
                 120,
@@ -29,9 +37,20 @@ impl<'a> GeneratorList<'a> {
                 "Hitting rocks with sticks".to_owned(),
             )
             .add_cost((ResourceType::WOOD, 50.0)),
+        ));
+        all_generators.insert(
+            punch_tree.borrow().generator_name.clone(),
+            punch_tree.clone(),
         );
-        let mut not_yet_used = VecDeque::new();
-        not_yet_used.push_front(
+        all_generators.insert(hit_rock.borrow().generator_name.clone(), hit_rock.clone());
+        let not_yet_used = VecDeque::new();
+        initial_generators = (punch_tree.clone(), hit_rock.clone());
+        let mut future_self = Self {
+            not_yet_used,
+            initial_generators,
+            all_generators,
+        };
+        future_self.add_gen(
             Generator::blank(
                 ResourceType::IRON,
                 180,
@@ -42,12 +61,12 @@ impl<'a> GeneratorList<'a> {
             )
             .add_cost((ResourceType::STONE, 50.0)),
         );
-        not_yet_used.push_front(
+        future_self.add_gen(
             Generator::blank(ResourceType::WOOD, 30, 1.04, 0, 2, "Actual Axes".to_owned())
                 .add_cost((ResourceType::WOOD, 10.0))
                 .add_cost((ResourceType::IRON, 5.0)),
         );
-        not_yet_used.push_front(
+        future_self.add_gen(
             Generator::blank(
                 ResourceType::STONE,
                 30,
@@ -59,16 +78,18 @@ impl<'a> GeneratorList<'a> {
             .add_cost((ResourceType::WOOD, 20.0))
             .add_cost((ResourceType::IRON, 10.0)),
         );
-
-        GeneratorList {
-            not_yet_used,
-            initial_generators,
-        }
+        future_self
     }
-    pub fn get_initials(&self) -> (Generator<'a>, Generator<'a>) {
+    pub fn get_initials(&self) -> (Rc<RefCell<Generator<'a>>>, Rc<RefCell<Generator<'a>>>) {
         return self.initial_generators.clone();
     }
-    pub fn get_next(&mut self) -> Option<Generator<'a>> {
+    pub fn get_next(&mut self) -> Option<Rc<RefCell<Generator<'a>>>> {
         self.not_yet_used.pop_back()
+    }
+    fn add_gen(&mut self, gener: Generator<'a>) {
+        let gen_ref = Rc::new(RefCell::new(gener));
+        self.all_generators
+            .insert(gen_ref.borrow().generator_name.clone(), gen_ref.clone());
+        self.not_yet_used.push_front(gen_ref.clone());
     }
 }

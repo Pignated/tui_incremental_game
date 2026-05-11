@@ -1,3 +1,5 @@
+use std::{cell::RefCell, rc::Rc};
+
 use crossterm::event::{self, KeyCode};
 use ratatui::{
     DefaultTerminal,
@@ -40,7 +42,7 @@ pub struct AppWidget<'a> {
     pub running: bool,
     pub resources: Vec<Resource>,
     generator_selected: u64,
-    generators: Vec<Generator<'a>>,
+    generators: Vec<Rc<RefCell<Generator<'a>>>>,
     generator_count: u64,
     debug: String,
     generator_list: GeneratorList<'a>,
@@ -79,7 +81,7 @@ impl<'a> AppWidget<'a> {
                     res.tick();
                 }
                 for gener in &mut self.generators {
-                    match gener.tick() {
+                    match gener.borrow_mut().tick() {
                         ResourceChange::Increase { amts, .. } => {
                             for x in amts {
                                 if let Some(resource) =
@@ -153,7 +155,7 @@ impl<'a> AppWidget<'a> {
                     let mut can_afford = true;
                     {
                         let generator = &self.generators[gen_idx];
-                        let cost = generator.get_cost();
+                        let cost = generator.borrow().get_cost();
                         for (res, amt) in &cost {
                             if self.get_resource(*res).count < *amt {
                                 can_afford = false;
@@ -162,7 +164,7 @@ impl<'a> AppWidget<'a> {
                         }
                     }
                     if can_afford {
-                        if self.generators[gen_idx].get_count() == 0 {
+                        if self.generators[gen_idx].borrow().get_count() == 0 {
                             match self.generator_list.get_next() {
                                 Some(gener) => {
                                     self.generators.push(gener);
@@ -171,7 +173,7 @@ impl<'a> AppWidget<'a> {
                                 _ => (),
                             }
                         }
-                        let res_change = self.generators[gen_idx].buy_next();
+                        let res_change = self.generators[gen_idx].borrow_mut().buy_next();
                         for res in &mut self.resources {
                             res.change(&res_change);
                         }
@@ -239,7 +241,7 @@ impl<'a> StatefulWidget for &AppWidget<'a> {
             .title("Generators")
             .title_alignment(HorizontalAlignment::Center);
         let builder = ListBuilder::new(|context| {
-            let mut item = self.generators[context.index].clone();
+            let mut item = self.generators[context.index].borrow_mut().clone();
             let mut size = 3;
             item = if context.is_selected {
                 size += 2;
