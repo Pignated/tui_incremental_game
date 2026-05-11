@@ -45,6 +45,7 @@ pub struct Resource {
     display_cache: String,
     updated: bool,
     pub resource_type: ResourceType,
+    total_count: usize,
 }
 impl Resource {
     pub fn new(name: String, color: Color, resource_type: ResourceType) -> Self {
@@ -55,14 +56,16 @@ impl Resource {
             display_cache: String::new(),
             updated: false,
             resource_type,
+            total_count: 0,
         }
     }
     pub fn increase(&mut self, to_add: usize) {
-        self.count = self.count.saturating_add(to_add as usize);
+        self.count = self.count.saturating_add(to_add);
+        self.total_count = self.total_count.saturating_add(to_add);
         self.updated = true
     }
     pub fn decrease(&mut self, to_remove: usize) {
-        self.count = self.count.saturating_sub(to_remove as usize);
+        self.count = self.count.saturating_sub(to_remove);
         self.updated = true
     }
     pub fn tick(&mut self) {
