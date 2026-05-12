@@ -78,6 +78,29 @@ impl<'a> GeneratorList<'a> {
             .add_cost((ResourceType::WOOD, 20.0))
             .add_cost((ResourceType::IRON, 10.0)),
         );
+        future_self.add_gen(
+            Generator::blank(
+                ResourceType::COPPER,
+                60,
+                1.12,
+                0,
+                1,
+                "Breaking into Houses to Steal their Wiring".to_owned(),
+            )
+            .add_cost((ResourceType::IRON, 15.0)),
+        );
+        future_self.add_gen(
+            Generator::blank(
+                ResourceType::IRON,
+                60,
+                1.09,
+                0,
+                1,
+                "Electric Drills".to_owned(),
+            )
+            .add_cost((ResourceType::COPPER, 30.0))
+            .add_cost((ResourceType::IRON, 20.0)),
+        );
         future_self
     }
     pub fn get_initials(&self) -> (Rc<RefCell<Generator<'a>>>, Rc<RefCell<Generator<'a>>>) {
