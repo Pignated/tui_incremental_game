@@ -62,11 +62,13 @@ impl EventThread {
         let tick = Duration::from_secs_f64(1.0 / TPS);
         let mut last_tick = Instant::now();
         loop {
-            let timeout = tick.saturating_sub(last_tick.elapsed());
-            if timeout == Duration::ZERO {
-                last_tick = Instant::now();
+            let elapsed = last_tick.elapsed();
+            if elapsed >= tick {
                 self.send(Event::Tick);
+                last_tick = Instant::now();
+                continue;
             }
+            let timeout = tick.saturating_sub(elapsed);
             // poll for crossterm events, ensuring that we don't block the tick interval
             if event::poll(timeout).wrap_err("failed to poll for crossterm events")? {
                 let event = event::read().wrap_err("failed to read crossterm event")?;
