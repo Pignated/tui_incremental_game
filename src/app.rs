@@ -43,8 +43,6 @@ pub struct AppWidget<'a> {
     pub running: bool,
     pub resources: Vec<Resource>,
     generators: Vec<Rc<RefCell<Generator<'a>>>>,
-    generator_count: usize,
-    debug: String,
     generator_list: GeneratorList<'a>,
 }
 
@@ -66,9 +64,7 @@ impl<'a> AppWidget<'a> {
             running: true,
             events: EventHandler::new(),
             resources,
-            generator_count: 2,
             generators,
-            debug: "Init".to_owned(),
             generator_list,
         }
     }
@@ -164,7 +160,6 @@ impl<'a> AppWidget<'a> {
                             match self.generator_list.get_next() {
                                 Some(gener) => {
                                     self.generators.push(gener);
-                                    self.generator_count += 1;
                                 }
                                 _ => (),
                             }
@@ -251,13 +246,11 @@ impl<'a> StatefulWidget for &AppWidget<'a> {
             (item, size)
         });
         let generator_list = ListView::new(builder, self.generators.len()).block(generator_block);
-        let bottom_block = Block::new()
-            .title(format!("By pignated{0}", self.debug))
-            .title_style(
-                Style::new()
-                    .bg(Color::Rgb(250, 201, 5))
-                    .fg(Color::Rgb(250, 58, 5)),
-            );
+        let bottom_block = Block::new().title("By Pignated").title_style(
+            Style::new()
+                .bg(Color::Rgb(250, 201, 5))
+                .fg(Color::Rgb(250, 58, 5)),
+        );
         bottom_block.render(status_area, buf);
         StatefulWidget::render(generator_list, right_area, buf, state)
     }
