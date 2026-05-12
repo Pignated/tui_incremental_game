@@ -122,7 +122,7 @@ impl<'a> GeneratorList<'a> {
                 1.23,
                 0,
                 1,
-                "Artisinal Ruby Mine".to_owned(),
+                "Artisanal Ruby Mine".to_owned(),
             )
             .add_cost((ResourceType::WOOD, 150.0))
             .add_cost((ResourceType::STONE, 150.0))
