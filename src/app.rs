@@ -23,7 +23,8 @@ pub struct App<'a> {
 }
 
 impl<'a> App<'a> {
-    pub fn new(widget: AppWidget<'a>, state: ListState) -> Self {
+    pub fn new(widget: AppWidget<'a>, mut state: ListState) -> Self {
+        state.select(Some(0));
         Self { widget, state }
     }
     pub fn run(mut self, mut terminal: DefaultTerminal) -> color_eyre::Result<()> {
@@ -31,7 +32,7 @@ impl<'a> App<'a> {
             terminal.draw(|frame| {
                 frame.render_stateful_widget(&self.widget, frame.area(), &mut self.state)
             })?;
-            self.widget.handle_events()?
+            self.widget.handle_events(&mut self.state)?
         }
         Ok(())
     }
@@ -41,9 +42,8 @@ pub struct AppWidget<'a> {
     pub events: EventHandler,
     pub running: bool,
     pub resources: Vec<Resource>,
-    generator_selected: u64,
     generators: Vec<Rc<RefCell<Generator<'a>>>>,
-    generator_count: u64,
+    generator_count: usize,
     debug: String,
     generator_list: GeneratorList<'a>,
 }
@@ -66,7 +66,6 @@ impl<'a> AppWidget<'a> {
             running: true,
             events: EventHandler::new(),
             resources,
-            generator_selected: 0,
             generator_count: 2,
             generators,
             debug: "Init".to_owned(),
@@ -74,7 +73,7 @@ impl<'a> AppWidget<'a> {
         }
     }
 
-    fn handle_events(&mut self) -> color_eyre::Result<()> {
+    fn handle_events(&mut self, state: &mut ListState) -> color_eyre::Result<()> {
         match self.events.next()? {
             crate::event::Event::Tick => {
                 for res in &mut self.resources {
@@ -141,28 +140,25 @@ impl<'a> AppWidget<'a> {
             }
             crate::event::Event::App(app_event) => match app_event {
                 crate::event::AppEvent::GoUp => {
-                    self.generator_selected = self
-                        .generator_selected
-                        .wrapping_sub(1)
-                        .rem_euclid(self.generator_count);
+                    state.previous();
                 }
                 crate::event::AppEvent::GoDown => {
-                    self.generator_selected = (self.generator_selected + 1) % self.generator_count
+                    state.next();
                 }
                 crate::event::AppEvent::GoLeft | crate::event::AppEvent::GoRight => {}
                 crate::event::AppEvent::Select => {
-                    let gen_idx = self.generator_selected as usize;
+                    let gen_idx = state.selected.unwrap();
                     let mut can_afford = true;
-                    {
-                        let generator = &self.generators[gen_idx];
-                        let cost = generator.borrow().get_cost();
-                        for (res, amt) in &cost {
-                            if self.get_resource(*res).count < *amt {
-                                can_afford = false;
-                                break;
-                            }
+
+                    let generator = &self.generators[gen_idx];
+                    let cost = generator.borrow().get_cost();
+                    for (res, amt) in &cost {
+                        if self.get_resource(*res).count < *amt {
+                            can_afford = false;
+                            break;
                         }
                     }
+
                     if can_afford {
                         if self.generators[gen_idx].borrow().get_count() == 0 {
                             match self.generator_list.get_next() {
@@ -225,7 +221,6 @@ impl<'a> StatefulWidget for &AppWidget<'a> {
             .title_alignment(HorizontalAlignment::Center)
             .border_set(symbols::border::DOUBLE);
         top_block.render(title_area, buf);
-        state.select(Some(self.generator_selected as usize));
         let resources_block = Block::bordered()
             .title("Resources")
             .title_alignment(HorizontalAlignment::Center);
@@ -247,7 +242,7 @@ impl<'a> StatefulWidget for &AppWidget<'a> {
                 size += 2;
                 item.block(
                     Block::default()
-                        .borders(Borders::TOP | Borders::BOTTOM)
+                        .borders(Borders::ALL)
                         .style(Style::default().yellow()),
                 )
             } else {
