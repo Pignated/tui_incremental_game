@@ -1,20 +1,17 @@
-use std::{cell::RefCell, rc::Rc};
-
 use crossterm::event::{self, KeyCode};
 use ratatui::{
     DefaultTerminal,
     layout::{Constraint, HorizontalAlignment, Layout},
     style::{Color, Style},
     symbols,
-    text::Line,
     widgets::{Block, Borders, Paragraph, StatefulWidget, Widget},
 };
 use tui_widget_list::{ListBuilder, ListState, ListView};
 
 use crate::{
     event::{AppEvent, EventHandler},
-    generator::{Generator, generator_list::GeneratorList},
-    resources::{Resource, ResourceChange, ResourceType},
+    generator::{GeneratorRefCellWrapper, generator_list::GeneratorList},
+    resources::ResourceManager,
 };
 
 pub struct App<'a> {
@@ -41,19 +38,14 @@ impl<'a> App<'a> {
 pub struct AppWidget<'a> {
     pub events: EventHandler,
     pub running: bool,
-    pub resources: Vec<Resource>,
-    generators: Vec<Rc<RefCell<Generator<'a>>>>,
+    pub resource_manager: ResourceManager<'a>,
+    generators: Vec<GeneratorRefCellWrapper<'a>>,
     generator_list: GeneratorList<'a>,
 }
 
 impl<'a> AppWidget<'a> {
     pub fn new() -> Self {
-        let mut resources = Vec::new();
-        resources.push(Resource::new(
-            "Wood".to_owned(),
-            ResourceType::WOOD.get_color(),
-            ResourceType::WOOD,
-        ));
+        let resource_manager = ResourceManager::new();
         let generator_list: GeneratorList<'_> = GeneratorList::default();
         let mut generators = Vec::new();
         let (a, b) = generator_list.get_initials();
@@ -63,7 +55,7 @@ impl<'a> AppWidget<'a> {
         Self {
             running: true,
             events: EventHandler::new(),
-            resources,
+            resource_manager,
             generators,
             generator_list,
         }
@@ -72,52 +64,9 @@ impl<'a> AppWidget<'a> {
     fn handle_events(&mut self, state: &mut ListState) -> color_eyre::Result<()> {
         match self.events.next()? {
             crate::event::Event::Tick => {
-                for res in &mut self.resources {
-                    res.tick();
-                }
+                self.resource_manager.tick();
                 for gener in &mut self.generators {
-                    match gener.borrow_mut().tick() {
-                        ResourceChange::Increase { amts, .. } => {
-                            for x in amts {
-                                if let Some(resource) =
-                                    self.resources.iter_mut().find(|y| y.resource_type == x.0)
-                                {
-                                    resource.increase(x.1);
-                                } else {
-                                    let mut new_resource = Resource::new_from_type(x.0);
-                                    new_resource.increase(x.1);
-                                    self.resources.push(new_resource);
-                                }
-                            }
-                        }
-                        ResourceChange::Decrease { amts, .. } => {
-                            for x in amts {
-                                if let Some(resource) =
-                                    self.resources.iter_mut().find(|y| y.resource_type == x.0)
-                                {
-                                    resource.decrease(x.1);
-                                } else {
-                                    let mut new_resource = Resource::new_from_type(x.0);
-                                    new_resource.decrease(x.1);
-                                    self.resources.push(new_resource);
-                                }
-                            }
-                        }
-                        ResourceChange::None => {}
-                        ResourceChange::SingleIncrease { amt, resource_type } => {
-                            if let Some(resource) = self
-                                .resources
-                                .iter_mut()
-                                .find(|x| x.resource_type == resource_type)
-                            {
-                                resource.increase(amt);
-                            } else {
-                                let mut new_resource = Resource::new_from_type(resource_type);
-                                new_resource.increase(amt);
-                                self.resources.push(new_resource);
-                            }
-                        }
-                    }
+                    self.resource_manager.change(gener.borrow_mut().tick());
                 }
             }
             crate::event::Event::Crossterm(event) => {
@@ -145,18 +94,17 @@ impl<'a> AppWidget<'a> {
                 crate::event::AppEvent::Select => {
                     let gen_idx = state.selected.unwrap();
                     let mut can_afford = true;
-
-                    let generator = &self.generators[gen_idx];
-                    let cost = generator.borrow().get_cost();
-                    for (res, amt) in &cost {
-                        if self.get_resource(*res).count < *amt {
+                    let gener_cost = self.generators[gen_idx].borrow().get_cost().clone();
+                    let res_arr = self.resource_manager.get_resources_arr();
+                    for (i, v) in res_arr.iter().enumerate() {
+                        if gener_cost[i] > *v {
                             can_afford = false;
                             break;
                         }
                     }
-
                     if can_afford {
-                        if self.generators[gen_idx].borrow().get_count() == 0 {
+                        let first_bought = self.generators[gen_idx].borrow().get_count() == 0;
+                        if first_bought {
                             match self.generator_list.get_next() {
                                 Some(gener) => {
                                     self.generators.push(gener);
@@ -165,8 +113,8 @@ impl<'a> AppWidget<'a> {
                             }
                         }
                         let res_change = self.generators[gen_idx].borrow_mut().buy_next();
-                        for res in &mut self.resources {
-                            res.change(&res_change);
+                        for rc in res_change {
+                            self.resource_manager.change(rc);
                         }
                     }
                 }
@@ -178,16 +126,6 @@ impl<'a> AppWidget<'a> {
     }
     fn quit(&mut self) {
         self.running = false;
-    }
-    fn get_resource(&mut self, res: ResourceType) -> &mut Resource {
-        let idx = self.resources.iter().position(|x| x.resource_type == res);
-        if let Some(i) = idx {
-            &mut self.resources[i]
-        } else {
-            let new_res = Resource::new_from_type(res);
-            self.resources.push(new_res);
-            self.resources.last_mut().unwrap()
-        }
     }
 }
 
@@ -219,31 +157,28 @@ impl<'a> StatefulWidget for &AppWidget<'a> {
         let resources_block = Block::bordered()
             .title("Resources")
             .title_alignment(HorizontalAlignment::Center);
-
-        let mut resources_text: Vec<Line> = Vec::new();
-        for res in &self.resources {
-            resources_text.push(res.get_str());
-        }
-
-        let resources_paragraph = Paragraph::new(resources_text).block(resources_block);
+        let resources_paragraph =
+            Paragraph::new(self.resource_manager.resource_lines.clone()).block(resources_block);
         resources_paragraph.render(left_area, buf);
         let generator_block = Block::bordered()
             .title("Generators")
             .title_alignment(HorizontalAlignment::Center);
         let builder = ListBuilder::new(|context| {
-            let mut item = self.generators[context.index].borrow_mut().clone();
+            let mut item = self.generators[context.index].clone();
             let mut size = 3;
             item = if context.is_selected {
                 size += 2;
-                item.block(
+                item.borrow_mut().block(
                     Block::default()
                         .borders(Borders::ALL)
                         .style(Style::default().yellow()),
-                )
+                );
+                item
             } else {
-                item.clear_block()
+                item.borrow_mut().clear_block();
+                item
             };
-            (item, size)
+            (item.clone(), size)
         });
         let generator_list = ListView::new(builder, self.generators.len()).block(generator_block);
         let bottom_block = Block::new().title("By Pignated").title_style(

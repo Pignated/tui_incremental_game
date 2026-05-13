@@ -3,9 +3,12 @@ use ratatui::{
     style::Color,
     text::{Line, Span},
 };
+
+pub const RESOURCE_COUNT: usize = 7;
 #[derive(PartialEq, Copy, Clone, Debug)]
+#[repr(usize)]
 pub enum ResourceType {
-    WOOD,
+    WOOD = 0,
     STONE,
     IRON,
     COPPER,
@@ -36,13 +39,21 @@ impl ResourceType {
             ResourceType::DIAMOND => "Diamond".to_owned(),
         }
     }
+    pub const VARIANTS: &'static [ResourceType] = &[
+        Self::WOOD,
+        Self::STONE,
+        Self::IRON,
+        Self::COPPER,
+        Self::GOLD,
+        Self::RUBY,
+        Self::DIAMOND,
+    ];
 }
 #[derive(Debug)]
 pub struct Resource {
     name: String,
     pub(crate) count: usize,
     color: Color,
-    display_cache: String,
     updated: bool,
     pub resource_type: ResourceType,
     total_count: usize,
@@ -53,7 +64,6 @@ impl Resource {
             name,
             count: 0,
             color,
-            display_cache: String::new(),
             updated: false,
             resource_type,
             total_count: 0,
@@ -68,15 +78,6 @@ impl Resource {
         self.count = self.count.saturating_sub(to_remove);
         self.updated = true
     }
-    pub fn tick(&mut self) {
-        if self.updated {
-            self.display_cache = format!("Current {0}: {1}", self.name, self.count);
-            self.updated = false;
-        }
-    }
-    pub fn get_str(&self) -> Line<'_> {
-        Line::from(Span::styled(&self.display_cache, self.color))
-    }
     pub fn new_from_type(resource_type: ResourceType) -> Self {
         return Resource::new(
             resource_type.get_name(),
@@ -86,42 +87,79 @@ impl Resource {
     }
     pub fn change(&mut self, change: &ResourceChange) {
         match change {
-            ResourceChange::Increase { amts, .. } => {
-                for x in amts {
-                    if x.0 == self.resource_type {
-                        self.increase(x.1);
-                    }
-                }
+            ResourceChange::SingleIncrease { amt, .. } => {
+                self.increase(*amt);
             }
-            ResourceChange::Decrease { amts, .. } => {
-                for x in amts {
-                    if x.0 == self.resource_type {
-                        self.decrease(x.1);
-                    }
-                }
-            }
-            ResourceChange::SingleIncrease { amt, resource_type } => {
-                if *resource_type == self.resource_type {
-                    self.increase(*amt);
-                }
+            ResourceChange::SingleDecrease { amt, .. } => {
+                self.decrease(*amt);
             }
             ResourceChange::None => {}
         }
     }
 }
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum ResourceChange {
-    Increase {
-        amts: Vec<(ResourceType, usize)>,
-        resource_count: usize,
-    },
-    Decrease {
-        amts: Vec<(ResourceType, usize)>,
-        resource_count: usize,
+    SingleDecrease {
+        amt: usize,
+        resource_type: ResourceType,
     },
     SingleIncrease {
         amt: usize,
         resource_type: ResourceType,
     },
     None,
+}
+
+pub struct ResourceManager<'a> {
+    resources: Vec<Resource>,
+    pub resource_lines: Vec<Line<'a>>,
+}
+impl<'a> ResourceManager<'a> {
+    pub fn new() -> Self {
+        let mut vect = Vec::new();
+        for res_type in ResourceType::VARIANTS {
+            vect.push(Resource::new_from_type(*res_type));
+        }
+        let res_lines = vec![Line::from(""); RESOURCE_COUNT];
+        ResourceManager {
+            resources: vect,
+            resource_lines: res_lines,
+        }
+    }
+    pub fn get_count(&self, res_type: ResourceType) -> usize {
+        self.resources[res_type as usize].count
+    }
+    pub fn get_total_count(&self, res_type: ResourceType) -> usize {
+        self.resources[res_type as usize].total_count
+    }
+    pub fn change(&mut self, change: ResourceChange) {
+        match change {
+            ResourceChange::SingleDecrease { resource_type, .. }
+            | ResourceChange::SingleIncrease { resource_type, .. } => {
+                self.resources[resource_type as usize].change(&change);
+            }
+            ResourceChange::None => {}
+        }
+    }
+    pub fn tick(&mut self) {
+        for res in &mut self.resources {
+            if res.updated {
+                res.updated = false;
+                self.resource_lines[res.resource_type as usize] = Line::from(Span::styled(
+                    format!("Current {0}: {1}", res.name, res.count),
+                    res.color,
+                ));
+            }
+        }
+    }
+    pub fn get_mut_resource(&mut self, res_type: ResourceType) -> &mut Resource {
+        self.resources.get_mut(res_type as usize).unwrap()
+    }
+    pub fn get_resources_arr(&self) -> [usize; RESOURCE_COUNT] {
+        let mut arr = [0; RESOURCE_COUNT];
+        for (i, v) in self.resources.iter().enumerate() {
+            arr[i] = v.count;
+        }
+        arr
+    }
 }

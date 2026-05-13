@@ -1,22 +1,21 @@
-use std::{
-    cell::RefCell,
-    collections::{HashMap, VecDeque},
-    rc::Rc,
+use std::collections::{HashMap, VecDeque};
+
+use crate::{
+    generator::{Generator, GeneratorRefCellWrapper},
+    resources::ResourceType,
 };
 
-use crate::{generator::Generator, resources::ResourceType};
-
 pub struct GeneratorList<'a> {
-    not_yet_used: VecDeque<Rc<RefCell<Generator<'a>>>>,
-    initial_generators: (Rc<RefCell<Generator<'a>>>, Rc<RefCell<Generator<'a>>>),
-    all_generators: HashMap<String, Rc<RefCell<Generator<'a>>>>,
+    not_yet_used: VecDeque<GeneratorRefCellWrapper<'a>>,
+    initial_generators: (GeneratorRefCellWrapper<'a>, GeneratorRefCellWrapper<'a>),
+    all_generators: HashMap<String, GeneratorRefCellWrapper<'a>>,
 }
 
 impl<'a> GeneratorList<'a> {
     pub fn default() -> Self {
-        let initial_generators: (Rc<RefCell<Generator>>, Rc<RefCell<Generator>>);
-        let mut all_generators: HashMap<String, Rc<RefCell<Generator>>> = HashMap::new();
-        let punch_tree = Rc::new(RefCell::new(
+        let initial_generators: (GeneratorRefCellWrapper<'a>, GeneratorRefCellWrapper<'a>);
+        let mut all_generators: HashMap<String, GeneratorRefCellWrapper<'a>> = HashMap::new();
+        let punch_tree = GeneratorRefCellWrapper::new(
             Generator::blank(
                 ResourceType::WOOD,
                 60,
@@ -26,8 +25,8 @@ impl<'a> GeneratorList<'a> {
                 "Punching Tree".to_owned(),
             )
             .add_cost((ResourceType::WOOD, 25.0)),
-        ));
-        let hit_rock = Rc::new(RefCell::new(
+        );
+        let hit_rock = GeneratorRefCellWrapper::new(
             Generator::blank(
                 ResourceType::STONE,
                 120,
@@ -37,7 +36,7 @@ impl<'a> GeneratorList<'a> {
                 "Hitting rocks with sticks".to_owned(),
             )
             .add_cost((ResourceType::WOOD, 50.0)),
-        ));
+        );
         all_generators.insert(
             punch_tree.borrow().generator_name.clone(),
             punch_tree.clone(),
@@ -130,14 +129,17 @@ impl<'a> GeneratorList<'a> {
         );
         future_self
     }
-    pub fn get_initials(&self) -> (Rc<RefCell<Generator<'a>>>, Rc<RefCell<Generator<'a>>>) {
-        return self.initial_generators.clone();
+    pub fn get_initials(&self) -> (GeneratorRefCellWrapper<'a>, GeneratorRefCellWrapper<'a>) {
+        return (
+            self.initial_generators.0.clone(),
+            self.initial_generators.1.clone(),
+        );
     }
-    pub fn get_next(&mut self) -> Option<Rc<RefCell<Generator<'a>>>> {
+    pub fn get_next(&mut self) -> Option<GeneratorRefCellWrapper<'a>> {
         self.not_yet_used.pop_back()
     }
     fn add_gen(&mut self, gener: Generator<'a>) {
-        let gen_ref = Rc::new(RefCell::new(gener));
+        let gen_ref = GeneratorRefCellWrapper::new(gener);
         self.all_generators
             .insert(gen_ref.borrow().generator_name.clone(), gen_ref.clone());
         self.not_yet_used.push_front(gen_ref.clone());
