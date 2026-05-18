@@ -45,8 +45,6 @@ impl<'a> ResManager<'a> {
             ResourceChange::Decrease { val } => {
                 for i in 0..RESOURCE_COUNT {
                     self.resource_counts[i] = self.resource_counts[i].saturating_sub(val[i]);
-                    self.resource_total_earned[i] =
-                        self.resource_total_earned[i].saturating_sub(val[i]);
                     self.has_changed |= ((val[i] != 0) as usize) << i;
                 }
             }
