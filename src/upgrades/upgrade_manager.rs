@@ -32,7 +32,7 @@ impl<'a> UpgradeManager<'a> {
     }
     pub fn poll_requirement_reached(&mut self, totals: ResValArray) {
         self.pending_upgrades.retain(|item| {
-            if totals.gte_all(item.cost) {
+            if totals.gte_all(item.requirements) {
                 self.ready_upgrades.push(item.clone());
                 false
             } else {
