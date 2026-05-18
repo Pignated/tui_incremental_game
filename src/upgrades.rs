@@ -6,10 +6,13 @@ use ratatui::{
     widgets::{Block, Paragraph, Widget, Wrap},
 };
 
-use crate::resources::{RESOURCE_COUNT, ResourceType, resource_array::ResValArray};
+use crate::{
+    generator::GeneratorID,
+    resources::{RESOURCE_COUNT, ResourceType, resource_array::ResValArray},
+};
 #[derive(Clone)]
 pub struct Upgrade<'a> {
-    pub effected_generator: String,
+    pub effected_generator: GeneratorID,
     pub speed_multiplier: Option<usize>,
     pub output_multiplier: Option<usize>,
     color: Color,
@@ -21,7 +24,7 @@ pub struct Upgrade<'a> {
 }
 impl<'a> Upgrade<'a> {
     pub fn new(
-        effected_generator: String,
+        effected_generator: GeneratorID,
         speed_multiplier: Option<usize>,
         output_multiplier: Option<usize>,
         color: Color,
@@ -41,7 +44,7 @@ impl<'a> Upgrade<'a> {
         }
     }
     pub fn new_speed(
-        effected_generator: String,
+        effected_generator: GeneratorID,
         speed_multiplier: usize,
         color: Color,
         description: String,
@@ -62,7 +65,7 @@ impl<'a> Upgrade<'a> {
         }
     }
     pub fn new_output(
-        effected_generator: String,
+        effected_generator: GeneratorID,
         output_multiplier: usize,
         color: Color,
         description: String,

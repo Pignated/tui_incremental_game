@@ -1,55 +1,46 @@
 use std::collections::{HashMap, VecDeque};
 
 use crate::{
-    generator::{Generator, GeneratorRefCellWrapper},
+    generator::{Generator, GeneratorID, GeneratorRefCellWrapper},
     resources::ResourceType,
     upgrades::Upgrade,
 };
 
 pub struct GeneratorList<'a> {
     not_yet_used: VecDeque<GeneratorRefCellWrapper<'a>>,
-    initial_generators: (GeneratorRefCellWrapper<'a>, GeneratorRefCellWrapper<'a>),
-    all_generators: HashMap<String, GeneratorRefCellWrapper<'a>>,
+    all_generators: HashMap<GeneratorID, GeneratorRefCellWrapper<'a>>,
 }
 
 impl<'a> GeneratorList<'a> {
     pub fn default() -> Self {
-        let initial_generators: (GeneratorRefCellWrapper<'a>, GeneratorRefCellWrapper<'a>);
-        let mut all_generators: HashMap<String, GeneratorRefCellWrapper<'a>> = HashMap::new();
-        let punch_tree = GeneratorRefCellWrapper::new(
-            Generator::blank(
-                ResourceType::WOOD,
-                60,
-                1.05,
-                1,
-                1,
-                "Punching Tree".to_owned(),
-            )
-            .add_cost((ResourceType::WOOD, 25.0)),
-        );
-        let hit_rock = GeneratorRefCellWrapper::new(
-            Generator::blank(
-                ResourceType::STONE,
-                120,
-                1.07,
-                0,
-                1,
-                "Hitting rocks with sticks".to_owned(),
-            )
-            .add_cost((ResourceType::WOOD, 50.0)),
-        );
-        all_generators.insert(
-            punch_tree.borrow().generator_name.clone(),
-            punch_tree.clone(),
-        );
-        all_generators.insert(hit_rock.borrow().generator_name.clone(), hit_rock.clone());
+        let all_generators: HashMap<GeneratorID, GeneratorRefCellWrapper<'a>> = HashMap::new();
+        let punch_tree = Generator::blank(
+            ResourceType::WOOD,
+            60,
+            1.05,
+            1,
+            1,
+            "Punching Tree".to_owned(),
+            0,
+        )
+        .add_cost((ResourceType::WOOD, 25.0));
+        let hit_rock = Generator::blank(
+            ResourceType::STONE,
+            120,
+            1.07,
+            0,
+            1,
+            "Hitting rocks with sticks".to_owned(),
+            0,
+        )
+        .add_cost((ResourceType::WOOD, 50.0));
         let not_yet_used = VecDeque::new();
-        initial_generators = (punch_tree.clone(), hit_rock.clone());
         let mut future_self = Self {
             not_yet_used,
-            initial_generators,
             all_generators,
         };
+        future_self.add_gen(punch_tree);
+        future_self.add_gen(hit_rock);
         future_self.add_gen(
             Generator::blank(
                 ResourceType::IRON,
@@ -58,13 +49,22 @@ impl<'a> GeneratorList<'a> {
                 0,
                 1,
                 "Hitting shinier rocks with more rocks".to_owned(),
+                0,
             )
             .add_cost((ResourceType::STONE, 50.0)),
         );
         future_self.add_gen(
-            Generator::blank(ResourceType::WOOD, 30, 1.04, 0, 2, "Actual Axes".to_owned())
-                .add_cost((ResourceType::WOOD, 10.0))
-                .add_cost((ResourceType::IRON, 5.0)),
+            Generator::blank(
+                ResourceType::WOOD,
+                30,
+                1.04,
+                0,
+                2,
+                "Actual Axes".to_owned(),
+                1,
+            )
+            .add_cost((ResourceType::WOOD, 10.0))
+            .add_cost((ResourceType::IRON, 5.0)),
         );
         future_self.add_gen(
             Generator::blank(
@@ -74,6 +74,7 @@ impl<'a> GeneratorList<'a> {
                 0,
                 2,
                 "Actual Pickaxes".to_owned(),
+                1,
             )
             .add_cost((ResourceType::WOOD, 20.0))
             .add_cost((ResourceType::IRON, 10.0)),
@@ -86,6 +87,7 @@ impl<'a> GeneratorList<'a> {
                 0,
                 1,
                 "Breaking into Houses to Steal their Wiring".to_owned(),
+                0,
             )
             .add_cost((ResourceType::IRON, 15.0)),
         );
@@ -97,6 +99,7 @@ impl<'a> GeneratorList<'a> {
                 0,
                 1,
                 "Electric Drills".to_owned(),
+                0,
             )
             .add_cost((ResourceType::COPPER, 30.0))
             .add_cost((ResourceType::IRON, 20.0)),
@@ -109,6 +112,7 @@ impl<'a> GeneratorList<'a> {
                 0,
                 1,
                 "Sieging the Vault".to_owned(),
+                0,
             )
             .add_cost((ResourceType::IRON, 100.0))
             .add_cost((ResourceType::STONE, 100.0))
@@ -123,6 +127,7 @@ impl<'a> GeneratorList<'a> {
                 0,
                 1,
                 "Artisanal Ruby Mine".to_owned(),
+                0,
             )
             .add_cost((ResourceType::WOOD, 150.0))
             .add_cost((ResourceType::STONE, 150.0))
@@ -130,19 +135,13 @@ impl<'a> GeneratorList<'a> {
         );
         future_self
     }
-    pub fn get_initials(&self) -> (GeneratorRefCellWrapper<'a>, GeneratorRefCellWrapper<'a>) {
-        return (
-            self.initial_generators.0.clone(),
-            self.initial_generators.1.clone(),
-        );
-    }
     pub fn get_next(&mut self) -> Option<GeneratorRefCellWrapper<'a>> {
         self.not_yet_used.pop_back()
     }
     fn add_gen(&mut self, gener: Generator<'a>) {
         let gen_ref = GeneratorRefCellWrapper::new(gener);
         self.all_generators
-            .insert(gen_ref.borrow().generator_name.clone(), gen_ref.clone());
+            .insert(gen_ref.borrow().id.clone(), gen_ref.clone());
         self.not_yet_used.push_front(gen_ref.clone());
     }
     pub fn apply_upgrade(&mut self, upgrade: Upgrade) {

@@ -51,11 +51,10 @@ pub struct AppWidget<'a> {
 impl<'a> AppWidget<'a> {
     pub fn new() -> Self {
         let resource_manager = ResManager::new();
-        let generator_list: GeneratorList<'_> = GeneratorList::default();
+        let mut generator_list: GeneratorList<'_> = GeneratorList::default();
         let mut generators = Vec::new();
-        let (a, b) = generator_list.get_initials();
-        generators.push(a);
-        generators.push(b);
+        generators.push(generator_list.get_next().unwrap());
+        generators.push(generator_list.get_next().unwrap());
         let purchasable_upgrades = Vec::new();
         Self {
             running: true,
@@ -261,15 +260,7 @@ impl<'a> StatefulWidget for &AppWidget<'a> {
             ListView::new(upgrade_builder, self.purchasable_upgrades.len()).block(upgrade_block);
         StatefulWidget::render(upgrade_list, upgrades_area, buf, &mut state.upgrade_state);
         //Rendering Footer
-        let mut bottom_block = Block::new();
-        if self.purchasable_upgrades.len() > 0 {
-            bottom_block = bottom_block.title(format!(
-                "{:?}",
-                self.purchasable_upgrades[0].effected_generator
-            ));
-        } else {
-            bottom_block = bottom_block.title("aaa");
-        }
+        let mut bottom_block = Block::new().title("By Pignated");
         bottom_block = bottom_block.title_style(
             Style::new()
                 .bg(Color::Rgb(250, 201, 5))
@@ -296,7 +287,7 @@ impl AppState {
             upgrade_state,
             generator_state,
             selected_upgrade: false,
-            upgrade_last_selected: None,
+            upgrade_last_selected: Some(0),
             generator_last_selected: Some(0),
         }
     }

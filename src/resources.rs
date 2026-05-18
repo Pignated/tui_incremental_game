@@ -6,7 +6,7 @@ pub use crate::resources::new_resource_manager::ResManager;
 use ratatui::style::Color::{self, Rgb};
 
 pub const RESOURCE_COUNT: usize = 7;
-#[derive(PartialEq, Copy, Clone, Debug)]
+#[derive(PartialEq, Copy, Clone, Debug, Hash, Eq)]
 #[repr(usize)]
 pub enum ResourceType {
     WOOD = 0,

@@ -1,6 +1,7 @@
 use ratatui::style::Color;
 
 use crate::{
+    generator::GeneratorID,
     resources::{ResourceType, resource_array::ResValArray},
     upgrades::Upgrade,
 };
@@ -15,7 +16,7 @@ impl<'a> UpgradeManager<'a> {
         let mut pending_upgrades = Vec::new();
         pending_upgrades.push(
             Upgrade::new(
-                String::from("Punching Tree"),
+                GeneratorID::new(ResourceType::WOOD, 0),
                 Some(2),
                 None,
                 Color::Red,

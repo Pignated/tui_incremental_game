@@ -30,10 +30,17 @@ pub struct Generator<'a> {
     amount_per_harvest: usize,
     generator_name: String,
     block: Option<Block<'a>>,
+    id: GeneratorID,
 }
-#[derive(Clone)]
-pub struct UpgradeCost {
-    pub costs: [usize; RESOURCE_COUNT],
+#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+pub struct GeneratorID {
+    res_type: ResourceType,
+    idx: usize,
+}
+impl GeneratorID {
+    pub fn new(res_type: ResourceType, idx: usize) -> Self {
+        GeneratorID { res_type, idx }
+    }
 }
 #[derive(Clone)]
 pub struct GeneratorRefCellWrapper<'a> {
@@ -69,6 +76,7 @@ impl<'a> Generator<'a> {
         starting_amount: usize,
         amount_per_harvest: usize,
         generator_name: String,
+        idx: usize,
     ) -> Self {
         Self {
             resource_type,
@@ -82,6 +90,10 @@ impl<'a> Generator<'a> {
             amount_per_harvest,
             generator_name,
             block: None,
+            id: GeneratorID {
+                res_type: resource_type,
+                idx,
+            },
         }
     }
     pub fn get_count(&self) -> usize {
@@ -202,15 +214,5 @@ impl<'a> Widget for GeneratorRefCellWrapper<'a> {
             .unfilled_style(Style::default().fg(Color::White));
 
         progress.render(progress_area, buf);
-    }
-}
-
-impl<'a> IntoIterator for &'a UpgradeCost {
-    type Item = &'a usize;
-
-    type IntoIter = std::slice::Iter<'a, usize>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.costs.iter()
     }
 }
