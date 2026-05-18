@@ -11,11 +11,16 @@ use ratatui::{
     widgets::{Block, LineGauge, Widget},
 };
 
-use crate::resources::{RESOURCE_COUNT, ResourceChange, ResourceType};
+use crate::{
+    resources::{
+        RESOURCE_COUNT, ResourceType, resource_array::ResValArray, resource_change::ResourceChange,
+    },
+    upgrades::Upgrade,
+};
 
 pub struct Generator<'a> {
     resource_type: ResourceType,
-    progress: usize,
+    pub progress: usize,
     ticks_per: usize,
     purchase_resource_count: usize,
     purchase_costs: Vec<(ResourceType, f64)>, //Contains the resource type and the initial cost
@@ -50,6 +55,9 @@ impl<'a> GeneratorRefCellWrapper<'a> {
     }
     pub fn borrow_mut(&mut self) -> RefMut<'_, Generator<'a>> {
         self.gener.borrow_mut()
+    }
+    pub fn upgrade(&mut self, upgrade: Upgrade) {
+        self.borrow_mut().upgrade(upgrade);
     }
 }
 
@@ -89,15 +97,14 @@ impl<'a> Generator<'a> {
         self.progress += 1;
         if self.progress >= self.ticks_per && self.current_bought > 0 {
             self.progress %= self.ticks_per;
-            return ResourceChange::SingleIncrease {
-                amt: self.amount_per_harvest * self.current_bought,
-                resource_type: self.resource_type,
-            };
+            let mut res_change = ResValArray::new();
+            res_change[self.resource_type as usize] = self.current_bought * self.amount_per_harvest;
+            return ResourceChange::Increase { val: res_change };
         } else {
             return ResourceChange::None;
         }
     }
-    pub fn get_cost(&self) -> [usize; RESOURCE_COUNT] {
+    pub fn get_cost(&self) -> ResValArray {
         let mut costs = [0usize; RESOURCE_COUNT];
         for rec in &self.purchase_costs {
             costs[rec.0 as usize] = (rec.1
@@ -106,28 +113,38 @@ impl<'a> Generator<'a> {
                     .powf((self.current_bought - self.initial_bought) as f64))
                 as usize;
         }
-        return costs;
+        return ResValArray(costs);
     }
-    pub fn buy_next(&mut self) -> [ResourceChange; RESOURCE_COUNT] {
-        let mut changes: [ResourceChange; RESOURCE_COUNT] = [ResourceChange::None; RESOURCE_COUNT];
+    pub fn buy_next(&mut self) -> ResourceChange {
+        let mut changes = ResValArray::new();
         for rec in &self.purchase_costs {
-            changes[rec.0 as usize] = ResourceChange::SingleDecrease {
-                amt: (rec.1
-                    * self
-                        .cost_coeff
-                        .powf((self.current_bought - self.initial_bought) as f64))
-                    as usize,
-                resource_type: rec.0,
-            }
+            changes[rec.0 as usize] = (rec.1
+                * self
+                    .cost_coeff
+                    .powf((self.current_bought - self.initial_bought) as f64))
+                as usize
         }
-        self.current_bought += 1;
 
-        changes
+        self.current_bought += 1;
+        ResourceChange::Decrease { val: changes }
     }
     pub fn add_cost(mut self, cost: (ResourceType, f64)) -> Self {
         self.purchase_costs.push(cost);
         self.purchase_resource_count += 1;
         self
+    }
+    pub fn upgrade(&mut self, upgrade: Upgrade) {
+        let Upgrade {
+            speed_multiplier,
+            output_multiplier,
+            ..
+        } = upgrade;
+        if let Some(speed_mult) = speed_multiplier {
+            self.ticks_per /= speed_mult;
+        }
+        if let Some(out_mult) = output_multiplier {
+            self.amount_per_harvest *= out_mult;
+        }
     }
 }
 impl<'a> Widget for GeneratorRefCellWrapper<'a> {
@@ -144,7 +161,7 @@ impl<'a> Widget for GeneratorRefCellWrapper<'a> {
             self.gener.borrow().generator_name.clone(),
             self.gener.borrow().current_bought
         ))
-        .style(Style::new().fg(self.gener.borrow().resource_type.get_color()));
+        .style(Style::new().fg(ResourceType::COLORS[self.gener.borrow().resource_type as usize]));
         let next_cost_line: Line;
         let mut cost_line_span_vec = Vec::new();
         cost_line_span_vec.push(resource_name_span);
@@ -153,13 +170,13 @@ impl<'a> Widget for GeneratorRefCellWrapper<'a> {
             cost_line_span_vec.push(
                 Span::from(format!(
                     "{}:{} ",
-                    x.0.get_name(),
+                    ResourceType::NAMES[x.0 as usize],
                     (x.1 * (self.gener.borrow().cost_coeff).powf(
                         (self.gener.borrow().current_bought - self.gener.borrow().initial_bought)
                             as f64
                     )) as u64
                 ))
-                .style(Style::new().fg(x.0.get_color())),
+                .style(Style::new().fg(ResourceType::COLORS[x.0 as usize])),
             );
         }
         next_cost_line = Line::from(cost_line_span_vec);
@@ -174,9 +191,13 @@ impl<'a> Widget for GeneratorRefCellWrapper<'a> {
             .ratio(progress_ratio)
             .label(Span::styled(
                 "",
-                Style::default().fg(self.gener.borrow().resource_type.get_color()),
+                Style::default()
+                    .fg(ResourceType::COLORS[self.gener.borrow().resource_type as usize]),
             ))
-            .filled_style(Style::default().fg(self.gener.borrow().resource_type.get_color()))
+            .filled_style(
+                Style::default()
+                    .fg(ResourceType::COLORS[self.gener.borrow().resource_type as usize]),
+            )
             .filled_symbol("█")
             .unfilled_style(Style::default().fg(Color::White));
 

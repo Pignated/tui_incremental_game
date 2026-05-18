@@ -3,6 +3,7 @@ use std::collections::{HashMap, VecDeque};
 use crate::{
     generator::{Generator, GeneratorRefCellWrapper},
     resources::ResourceType,
+    upgrades::Upgrade,
 };
 
 pub struct GeneratorList<'a> {
@@ -143,5 +144,10 @@ impl<'a> GeneratorList<'a> {
         self.all_generators
             .insert(gen_ref.borrow().generator_name.clone(), gen_ref.clone());
         self.not_yet_used.push_front(gen_ref.clone());
+    }
+    pub fn apply_upgrade(&mut self, upgrade: Upgrade) {
+        if let Some(gener) = self.all_generators.get_mut(&upgrade.effected_generator) {
+            gener.upgrade(upgrade);
+        }
     }
 }
