@@ -56,6 +56,7 @@ impl<'a> AppWidget<'a> {
         generators.push(generator_list.get_next().unwrap());
         generators.push(generator_list.get_next().unwrap());
         let purchasable_upgrades = Vec::new();
+        let upgrade_manager = UpgradeManager::new(&generator_list);
         Self {
             running: true,
             events: EventHandler::new(),
@@ -63,7 +64,7 @@ impl<'a> AppWidget<'a> {
             generators,
             generator_list,
             purchasable_upgrades,
-            upgrade_manager: UpgradeManager::new(),
+            upgrade_manager,
         }
     }
 
@@ -238,6 +239,7 @@ impl<'a> StatefulWidget for &AppWidget<'a> {
                 .title("Upgrades")
                 .title_alignment(HorizontalAlignment::Center)
         };
+        let upgrade_count = self.purchasable_upgrades.len();
         let upgrade_builder = ListBuilder::new(|context| {
             let mut item = self.purchasable_upgrades[context.index].clone();
             let para = Paragraph::new(item.description.clone()).wrap(Wrap { trim: true });
@@ -249,6 +251,10 @@ impl<'a> StatefulWidget for &AppWidget<'a> {
                         .borders(Borders::ALL)
                         .border_style(Style::default().yellow()),
                 );
+                item
+            } else if context.index + 1 < upgrade_count {
+                item.block(Block::default().borders(Borders::BOTTOM));
+                size += 1;
                 item
             } else {
                 item.clear_block();

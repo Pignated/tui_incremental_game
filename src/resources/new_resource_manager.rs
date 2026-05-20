@@ -1,10 +1,10 @@
 use std::{array, iter::zip};
 
-use ratatui::text::{Line, Span};
-
 use crate::resources::{
     RESOURCE_COUNT, ResourceType, resource_array::ResValArray, resource_change::ResourceChange,
 };
+use crate::shared_fn::format_num;
+use ratatui::text::{Line, Span};
 pub struct ResManager<'a> {
     resource_counts: ResValArray,
     resource_total_earned: ResValArray,
@@ -60,7 +60,7 @@ impl<'a> ResManager<'a> {
                 format!(
                     "Current {0}: {1}",
                     ResourceType::NAMES[idx],
-                    self.resource_counts[idx]
+                    format_num(self.resource_counts[idx])
                 ),
                 ResourceType::COLORS[idx],
             ));

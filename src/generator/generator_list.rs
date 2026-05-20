@@ -1,5 +1,7 @@
 use std::collections::{HashMap, VecDeque};
 
+use ratatui::style::Color;
+
 use crate::{
     generator::{Generator, GeneratorID, GeneratorRefCellWrapper},
     resources::ResourceType,
@@ -147,6 +149,21 @@ impl<'a> GeneratorList<'a> {
     pub fn apply_upgrade(&mut self, upgrade: Upgrade) {
         if let Some(gener) = self.all_generators.get_mut(&upgrade.effected_generator) {
             gener.upgrade(upgrade);
+        }
+    }
+    pub fn get_gener_name(&self, id: GeneratorID) -> Option<String> {
+        if let Some(gener) = self.all_generators.get(&id) {
+            Some(gener.borrow().generator_name.clone())
+        } else {
+            None
+        }
+    }
+
+    pub fn get_gener_color(&self, id: GeneratorID) -> Color {
+        if let Some(gener) = self.all_generators.get(&id) {
+            ResourceType::COLORS[gener.borrow().resource_type as usize]
+        } else {
+            Color::White
         }
     }
 }

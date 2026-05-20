@@ -19,7 +19,7 @@ use crate::{
 };
 
 pub struct Generator<'a> {
-    resource_type: ResourceType,
+    pub resource_type: ResourceType,
     pub progress: usize,
     ticks_per: usize,
     purchase_resource_count: usize,

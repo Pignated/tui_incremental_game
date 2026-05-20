@@ -1,7 +1,7 @@
 use ratatui::style::Color;
 
 use crate::{
-    generator::GeneratorID,
+    generator::{GeneratorID, generator_list::GeneratorList},
     resources::{ResourceType, resource_array::ResValArray},
     upgrades::Upgrade,
 };
@@ -11,7 +11,7 @@ pub struct UpgradeManager<'a> {
     pending_upgrades: Vec<Upgrade<'a>>,
 }
 impl<'a> UpgradeManager<'a> {
-    pub fn new() -> Self {
+    pub fn new(generator_list: &GeneratorList) -> Self {
         let ready_upgrades = Vec::new();
         let mut pending_upgrades = Vec::new();
         pending_upgrades.push(
@@ -21,11 +21,22 @@ impl<'a> UpgradeManager<'a> {
                 None,
                 Color::Red,
                 String::from("I mean c'mon, just punch faster man"),
-                String::from("Punch trees harder"),
+                String::from("Punch trees faster"),
+                generator_list,
             )
             .add_cost(100, ResourceType::WOOD)
             .add_requirement(500, ResourceType::WOOD),
         );
+        pending_upgrades.push(Upgrade::new_output(
+            GeneratorID::new(ResourceType::STONE, 0),
+            2,
+            Color::Red,
+            String::from("Those are some thick ass branches"),
+            String::from("Use bigger branches"),
+            ResValArray::new().add_cost(1000, ResourceType::WOOD),
+            ResValArray::new().add_cost(500, ResourceType::STONE),
+            generator_list,
+        ));
         UpgradeManager {
             ready_upgrades,
             pending_upgrades,
