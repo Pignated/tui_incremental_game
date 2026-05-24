@@ -1,21 +1,24 @@
 use std::{array, iter::zip};
 
+use serde::{Deserialize, Serialize};
+
+use crate::resources::RESOURCES;
 use crate::resources::{
     RESOURCE_COUNT, ResourceType, resource_array::ResValArray, resource_change::ResourceChange,
 };
 use crate::shared_fn::format_num;
-use ratatui::text::{Line, Span};
-pub struct ResManager<'a> {
+#[derive(Serialize, Deserialize)]
+pub struct ResManager {
     resource_counts: ResValArray,
     resource_total_earned: ResValArray,
-    pub resource_lines: [Line<'a>; RESOURCE_COUNT],
+    pub resource_lines: [String; RESOURCE_COUNT],
     has_changed: usize,
 }
-impl<'a> ResManager<'a> {
+impl ResManager {
     pub fn new() -> Self {
         let resource_counts = ResValArray::new();
         let resource_total_earned = ResValArray::new();
-        let resource_lines = array::from_fn(|_| Line::from(""));
+        let resource_lines = array::from_fn(|_| String::new());
         ResManager {
             resource_counts,
             resource_total_earned,
@@ -24,10 +27,10 @@ impl<'a> ResManager<'a> {
         }
     }
     pub fn get_count(&self, res_type: ResourceType) -> usize {
-        self.resource_counts[res_type as usize]
+        self.resource_counts[res_type.id]
     }
     pub fn get_total_count(&self, res_type: ResourceType) -> usize {
-        self.resource_total_earned[res_type as usize]
+        self.resource_total_earned[res_type.id]
     }
     pub fn get_all_total_counts(&self) -> ResValArray {
         self.resource_total_earned
@@ -55,15 +58,11 @@ impl<'a> ResManager<'a> {
         let mut mask = self.has_changed;
         while mask != 0 {
             let idx = mask.trailing_zeros() as usize;
-
-            self.resource_lines[idx] = Line::from(Span::styled(
-                format!(
-                    "Current {0}: {1}",
-                    ResourceType::NAMES[idx],
-                    format_num(self.resource_counts[idx])
-                ),
-                ResourceType::COLORS[idx],
-            ));
+            self.resource_lines[idx] = format!(
+                "Current {0}: {1}",
+                RESOURCES[idx].name,
+                format_num(self.resource_counts[idx])
+            );
             mask &= !(1 << idx);
         }
     }

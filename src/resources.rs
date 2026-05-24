@@ -3,39 +3,63 @@ pub mod resource_amount;
 pub mod resource_array;
 pub mod resource_change;
 pub use crate::resources::new_resource_manager::ResManager;
-use ratatui::style::Color::{self, Rgb};
+use ratatui::style::Color::{self};
 
 pub const RESOURCE_COUNT: usize = 7;
-#[derive(PartialEq, Copy, Clone, Debug, Hash, Eq)]
-#[repr(usize)]
-pub enum ResourceType {
-    WOOD = 0,
-    STONE,
-    IRON,
-    COPPER,
-    GOLD,
-    RUBY,
-    DIAMOND,
+#[derive(Clone, Copy, Hash)]
+pub struct ResourceType {
+    pub name: &'static str,
+    pub color: Color,
+    pub id: usize,
 }
-impl ResourceType {
-    pub const NAMES: [&'static str; RESOURCE_COUNT] =
-        ["Wood", "Stone", "Iron", "Copper", "Gold", "Ruby", "Diamond"];
-    pub const VARIANTS: &'static [ResourceType] = &[
-        Self::WOOD,
-        Self::STONE,
-        Self::IRON,
-        Self::COPPER,
-        Self::GOLD,
-        Self::RUBY,
-        Self::DIAMOND,
-    ];
-    pub const COLORS: &'static [Color; RESOURCE_COUNT] = &[
-        Rgb(130, 76, 9),
-        Rgb(115, 120, 119),
-        Rgb(167, 171, 171),
-        Rgb(240, 169, 17),
-        Rgb(245, 242, 51),
-        Rgb(153, 2, 2),
-        Rgb(240, 169, 17),
-    ];
+macro_rules! generate_resource {
+    ($($name:ident, $color:expr );* $(;)?) => {
+        pub const TOTAL_ITEMS: usize = generate_resource!(@count $($name)*);
+        generate_resource!(@expand 0; $($name, $color);*);
+        paste::paste! {
+            pub const RESOURCES: [ResourceType; TOTAL_ITEMS] = [
+                $([<$name:upper>]),*
+            ];
+        }
+    };
+    (@count) => { 0 };
+    (@count $head:ident $($tail:ident)*) => {1 + generate_resource!(@count $($tail)*)};
+
+    (@expand $idx:expr; $name:ident, $color:expr; $($tail_name:ident, $tail_color:expr);*) => {
+        paste::paste! {
+        pub const [<$name:upper>]: ResourceType = ResourceType {
+            name: stringify!($name),
+            color: $color,
+            id: $idx,
+        };
+        }
+        generate_resource!(@expand $idx + 1; $($tail_name, $tail_color );*);
+    };
+    (@expand $idx:expr; $name:ident, $color:expr) => {
+        paste::paste! {
+            const [<$name:upper>]: ResourceType = ResourceType {
+                name: stringify!($name),
+                color: $color,
+                id: $idx,
+            };
+
+        }
+    };
 }
+
+generate_resource! {
+    Wood, Color::White;
+    Stone, Color::White;
+    Iron, Color::White;
+    Copper, Color::White;
+    Gold, Color::White;
+    Ruby, Color::White;
+    Diamond,Color::White;
+}
+
+impl PartialEq for ResourceType {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+impl Eq for ResourceType {}

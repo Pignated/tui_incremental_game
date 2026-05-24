@@ -11,7 +11,6 @@ pub const TPS: f64 = 60.0;
 pub enum Event {
     Tick,
     Crossterm(CrosstermEvent),
-    App(AppEvent),
 }
 
 pub enum AppEvent {
@@ -24,7 +23,6 @@ pub enum AppEvent {
 }
 //The main thread holds on to this as a way to listen for events
 pub struct EventHandler {
-    tx: mpsc::Sender<Event>,
     rx: mpsc::Receiver<Event>,
 }
 
@@ -33,10 +31,7 @@ impl EventHandler {
         let (tx, rx) = mpsc::channel();
         let ev_thread = EventThread::new(tx.clone());
         thread::spawn(|| ev_thread.run());
-        Self { tx, rx }
-    }
-    pub fn send(&self, app_event: AppEvent) {
-        let _ = self.tx.send(Event::App(app_event));
+        Self { rx }
     }
     pub fn next(&self) -> color_eyre::Result<Event> {
         Ok(self.rx.recv()?)
@@ -59,7 +54,7 @@ impl EventThread {
         Self { tx }
     }
     fn run(self) -> color_eyre::Result<()> {
-        let tick = Duration::from_secs_f64(1.0 / TPS);
+        let tick = Duration::from_millis(50);
         let mut last_tick = Instant::now();
         loop {
             let elapsed = last_tick.elapsed();

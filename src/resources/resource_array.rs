@@ -3,8 +3,10 @@ use std::{
     ops::{Add, AddAssign, Index, IndexMut, Sub, SubAssign},
 };
 
+use serde::{Deserialize, Serialize};
+
 use crate::resources::{RESOURCE_COUNT, ResourceType};
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct ResValArray(pub [usize; RESOURCE_COUNT]);
 impl ResValArray {
     pub fn new() -> Self {
@@ -21,7 +23,7 @@ impl ResValArray {
         greater
     }
     pub fn add_cost(mut self, amt: usize, res_type: ResourceType) -> Self {
-        self[res_type as usize] = amt;
+        self[res_type.id] = amt;
         self
     }
     pub fn get_val(self, idx: usize) -> usize {
@@ -29,6 +31,13 @@ impl ResValArray {
             return 0;
         }
         return self[idx];
+    }
+    pub fn mult_by(self, by: f64) -> Self {
+        let mut a = self.clone();
+        for i in 0..RESOURCE_COUNT {
+            a[i] = (a[i] as f64 * by) as usize;
+        }
+        a
     }
 }
 

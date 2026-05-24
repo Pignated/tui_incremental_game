@@ -10,7 +10,7 @@ impl ResourceAmount {
         }
     }
     pub fn add_cost(mut self, amt: usize, res_type: ResourceType) -> Self {
-        self.cost[res_type as usize] = amt;
+        self.cost[res_type.id] = amt;
         self
     }
     pub fn get_arr(self) -> [usize; RESOURCE_COUNT] {
